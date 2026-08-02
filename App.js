@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Keyboard,
   ScrollView,
+  Platform,
 } from 'react-native';
 
 // Cidades rápidas (região do usuário + capitais úteis)
@@ -325,6 +326,8 @@ export default function App() {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chipsContainer}
         style={styles.chipsScroll}
+        // evita conflito de scroll no web
+        nestedScrollEnabled
       >
         {CIDADES_RAPIDAS.map((c) => (
           <TouchableOpacity
@@ -401,7 +404,7 @@ export default function App() {
         />
       )}
 
-      {/* Área principal */}
+      {/* Área principal — flex:1 é OBRIGATÓRIO para scroll no web */}
       {loading ? (
         <View style={styles.centerArea}>
           <ActivityIndicator size="large" color={colors.header} />
@@ -429,11 +432,15 @@ export default function App() {
         </View>
       ) : (
         <FlatList
+          style={styles.listFlex}
           data={filteredWeather}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
-          contentContainerStyle={styles.list}
-          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.listContent}
+          // no web mostra a barra para poder arrastar com o mouse também
+          showsVerticalScrollIndicator={Platform.OS === 'web'}
+          // ajuda o mouse wheel no navegador
+          keyboardShouldPersistTaps="handled"
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -451,7 +458,10 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 48,
+    // no web o paddingTop ajuda a não colar no topo do browser
+    paddingTop: Platform.OS === 'web' ? 24 : 48,
+    // garante altura total no navegador
+    ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'hidden' } : {}),
   },
   headerRow: {
     flexDirection: 'row',
@@ -492,6 +502,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 11,
     fontSize: 15,
+    // outline no web fica feio às vezes
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   searchButton: {
     width: 48,
@@ -526,6 +538,7 @@ const styles = StyleSheet.create({
   chipsScroll: {
     maxHeight: 44,
     marginBottom: 12,
+    flexGrow: 0,
   },
   chipsContainer: {
     paddingHorizontal: 20,
@@ -585,6 +598,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
+    ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   centerArea: {
     flex: 1,
@@ -616,7 +630,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-  list: {
+  // ESSENCIAL para o mouse wheel funcionar no navegador
+  listFlex: {
+    flex: 1,
+  },
+  listContent: {
     paddingHorizontal: 20,
     paddingBottom: 24,
   },
