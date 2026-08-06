@@ -16,7 +16,6 @@ import {
   useWindowDimensions,
 } from 'react-native';
 
-// Fundos locais (pasta fundos-clima na raiz)
 const FUNDOS = {
   ensolarado: require('./fundos-clima/ensolarado.jpg'),
   parcialmente_nublado: require('./fundos-clima/parcialmente_nublado.jpg'),
@@ -38,18 +37,24 @@ const CIDADES_RAPIDAS = [
   { nome: 'Salvador', lat: -12.9714, lon: -38.5014 },
 ];
 
-// Estilo liquid glass sem instalar lib (blur só no web)
 const glassStyle = (dark) => ({
-  backgroundColor: dark ? 'rgba(30, 41, 59, 0.45)' : 'rgba(255, 255, 255, 0.28)',
+  backgroundColor: dark ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.3)',
   borderWidth: 1,
   borderColor: dark ? 'rgba(148, 163, 184, 0.25)' : 'rgba(255, 255, 255, 0.45)',
   ...(Platform.OS === 'web'
-    ? {
-        backdropFilter: 'blur(18px)',
-        WebkitBackdropFilter: 'blur(18px)',
-      }
+    ? { backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)' }
     : {}),
 });
+
+// esconde a barrinha feia no web, mas a rodinha continua funcionando
+const hideScrollbar = Platform.OS === 'web'
+  ? {
+      scrollbarWidth: 'none',
+      msOverflowStyle: 'none',
+      overflowY: 'auto',
+      overflowX: 'hidden',
+    }
+  : {};
 
 export default function App() {
   const { width } = useWindowDimensions();
@@ -70,9 +75,9 @@ export default function App() {
   const [searchText, setSearchText] = useState('');
   const [searchingCity, setSearchingCity] = useState(false);
   const [cityResults, setCityResults] = useState([]);
-
   const [dateFilter, setDateFilter] = useState('');
   const [darkMode, setDarkMode] = useState(false);
+  // detalhes | horario | diario | sobre
   const [aba, setAba] = useState('detalhes');
 
   useEffect(() => {
@@ -221,18 +226,15 @@ export default function App() {
     return '🌡️';
   };
 
-  // Fundo por código + dia/noite (is_day da API)
   const getFundoPorCodigo = (code, isDay = 1) => {
     const noite = isDay === 0;
-
     if (code === 0) return noite ? FUNDOS.neblina : FUNDOS.ensolarado;
     if (code === 1 || code === 2) {
       return noite ? FUNDOS.nublado : FUNDOS.parcialmente_nublado;
     }
     if (code === 3) return FUNDOS.nublado;
     if (code === 45 || code === 48) return FUNDOS.neblina;
-    if (code >= 51 && code <= 57) return FUNDOS.chuva; // garoa
-    if (code >= 61 && code <= 67) return FUNDOS.chuva;
+    if (code >= 51 && code <= 67) return FUNDOS.chuva;
     if (code >= 80 && code <= 82) return FUNDOS.chuva;
     if (code >= 71 && code <= 77) return FUNDOS.neve;
     if (code >= 95) return FUNDOS.tempestade;
@@ -277,16 +279,13 @@ export default function App() {
 
   const colors = {
     header: darkMode ? '#38bdf8' : '#1e88e5',
-    title: darkMode ? '#e2e8f0' : '#1e293b',
     subtitle: darkMode ? '#94a3b8' : '#475569',
     text: darkMode ? '#f8fafc' : '#0f172a',
     highlight: darkMode ? '#fbbf24' : '#ea580c',
-    inputBg: darkMode ? 'rgba(51,65,85,0.55)' : 'rgba(255,255,255,0.35)',
-    chip: darkMode ? 'rgba(51,65,85,0.5)' : 'rgba(255,255,255,0.35)',
     chipText: darkMode ? '#e2e8f0' : '#0f172a',
     overlay: darkMode ? 'rgba(15,23,42,0.45)' : 'rgba(15,23,42,0.18)',
     tabActive: darkMode ? '#38bdf8' : '#1e88e5',
-    tabInactive: darkMode ? 'rgba(51,65,85,0.45)' : 'rgba(255,255,255,0.3)',
+    navBg: darkMode ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.88)',
   };
 
   const glass = glassStyle(darkMode);
@@ -294,11 +293,8 @@ export default function App() {
     current?.weather_code ?? 3,
     current?.is_day ?? 1
   );
-
-  // Largura dos cards de métrica (responsivo)
   const metricWidth = isWide ? '23%' : width < 360 ? '100%' : '47%';
 
-  // ===================== RENDER ITEMS =====================
   const renderHourly = ({ item }) => (
     <View style={[styles.card, glass]}>
       <View style={styles.timeBox}>
@@ -365,14 +361,14 @@ export default function App() {
     </View>
   );
 
-  // Lista: no web usa ScrollView (mouse wheel funciona); no mobile FlatList (requisito)
+  // Scroll com rodinha no web (sem barra lateral feia) + FlatList no mobile
   const HourlyList = () => {
     if (Platform.OS === 'web') {
       return (
         <ScrollView
-          style={styles.listFlex}
+          style={[styles.listFlex, hideScrollbar]}
           contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {filteredWeather.map((item) => (
@@ -407,9 +403,9 @@ export default function App() {
     if (Platform.OS === 'web') {
       return (
         <ScrollView
-          style={styles.listFlex}
+          style={[styles.listFlex, hideScrollbar]}
           contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator
+          showsVerticalScrollIndicator={false}
         >
           {daily.map((item) => (
             <View key={item.id}>{renderDaily({ item })}</View>
@@ -438,6 +434,13 @@ export default function App() {
     );
   };
 
+  const navItems = [
+    { key: 'detalhes', icon: '📊', label: 'Detalhes' },
+    { key: 'horario', icon: '🕐', label: 'Por hora' },
+    { key: 'diario', icon: '📅', label: '7 dias' },
+    { key: 'sobre', icon: 'ℹ️', label: 'Sobre' },
+  ];
+
   return (
     <ImageBackground source={fundoAtual} style={styles.bg} resizeMode="cover">
       <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
@@ -454,257 +457,338 @@ export default function App() {
               </TouchableOpacity>
             </View>
 
-            {/* Busca */}
-            <View style={styles.searchRow}>
-              <TextInput
-                style={[styles.searchInput, glass, { color: colors.text }]}
-                placeholder="Buscar cidade (ex: Valinhos, Lisboa...)"
-                placeholderTextColor={colors.subtitle}
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={buscarCidade}
-                returnKeyType="search"
-                autoCapitalize="words"
-              />
-              <TouchableOpacity
-                style={[styles.searchButton, { backgroundColor: colors.header }]}
-                onPress={buscarCidade}
-                disabled={searchingCity}
-              >
-                {searchingCity ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.searchButtonText}>🔍</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Resultados */}
-            {cityResults.length > 0 && (
-              <View style={[styles.resultsBox, glass]}>
-                {cityResults.map((c, idx) => (
-                  <TouchableOpacity
-                    key={`${c.id || idx}`}
-                    style={styles.resultItem}
-                    onPress={() => selecionarCidade(c)}
-                  >
-                    <Text style={[styles.resultName, { color: colors.text }]}>
-                      {c.name}
-                      {c.admin1 ? `, ${c.admin1}` : ''}
-                    </Text>
-                    <Text style={[styles.resultCountry, { color: colors.subtitle }]}>
-                      {c.country}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Chips */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipsContainer}
-              style={styles.chipsScroll}
-              nestedScrollEnabled
-            >
-              {CIDADES_RAPIDAS.map((c) => (
-                <TouchableOpacity
-                  key={c.nome}
-                  style={[
-                    styles.chip,
-                    glass,
-                    cidadeNome === c.nome && { backgroundColor: colors.header, borderColor: colors.header },
-                  ]}
-                  onPress={() => selecionarCidade(c)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      { color: cidadeNome === c.nome ? '#fff' : colors.chipText },
-                    ]}
-                  >
-                    {c.nome}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            {/* Card atual */}
-            {current && !loading && !error && (
-              <View style={[styles.currentCard, glass]}>
-                <View style={styles.currentIconBox}>
-                  <Text style={styles.currentIcon}>
-                    {getWeatherIcon(current.weather_code)}
-                  </Text>
-                </View>
-                <View style={styles.currentInfo}>
-                  <Text style={[styles.currentTitle, { color: colors.text }]}>
-                    {cidadeNome}
-                    {cidadePais ? ` · ${cidadePais}` : ''}
-                  </Text>
-                  <Text style={[styles.currentTemp, { color: colors.highlight }]}>
-                    {Math.round(current.temperature_2m)}°C
-                  </Text>
-                  <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
-                    Sensação{' '}
-                    {Math.round(
-                      current.apparent_temperature ?? current.temperature_2m
-                    )}
-                    °C
-                  </Text>
-                  <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
-                    📈 {current.max != null ? Math.round(current.max) : '--'}° · 📉{' '}
-                    {current.min != null ? Math.round(current.min) : '--'}°
-                  </Text>
-                  <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
-                    📅 {formatFullDate(current.time)}
-                  </Text>
-                </View>
-              </View>
-            )}
-
-            {/* Abas */}
-            {!loading && !error && current && (
-              <View style={styles.tabsRow}>
-                {[
-                  { key: 'detalhes', label: 'Detalhes' },
-                  { key: 'horario', label: 'Por hora' },
-                  { key: 'diario', label: '7 dias' },
-                ].map((t) => (
-                  <TouchableOpacity
-                    key={t.key}
-                    style={[
-                      styles.tabBtn,
-                      glass,
-                      aba === t.key && {
-                        backgroundColor: colors.tabActive,
-                        borderColor: colors.tabActive,
-                      },
-                    ]}
-                    onPress={() => setAba(t.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        { color: aba === t.key ? '#fff' : colors.text },
-                      ]}
-                    >
-                      {t.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-
-            {/* Conteúdo */}
-            {loading ? (
-              <View style={styles.centerArea}>
-                <ActivityIndicator size="large" color="#fff" />
-                <Text style={styles.loadingText}>
-                  Carregando previsão de {cidadeNome}...
-                </Text>
-              </View>
-            ) : error ? (
-              <View style={styles.centerArea}>
-                <Text style={styles.errorEmoji}>😢</Text>
-                <Text style={styles.errorText}>{error}</Text>
-                <TouchableOpacity
-                  style={[styles.retryButton, { backgroundColor: colors.header }]}
-                  onPress={() => fetchWeather(latitude, longitude)}
-                >
-                  <Text style={styles.retryButtonText}>Tentar novamente</Text>
-                </TouchableOpacity>
-              </View>
-            ) : aba === 'detalhes' && current ? (
-              <ScrollView
-                style={styles.listFlex}
-                contentContainerStyle={styles.metricsGrid}
-                showsVerticalScrollIndicator={Platform.OS === 'web'}
-                keyboardShouldPersistTaps="handled"
-                // no web o ScrollView responde melhor ao mouse
-                {...(Platform.OS === 'web' ? { scrollEventThrottle: 16 } : {})}
-              >
-                <Metric emoji="💧" label="Umidade" value={`${current.relative_humidity_2m}%`} />
-                <Metric
-                  emoji="🌡️"
-                  label="Sensação"
-                  value={`${Math.round(current.apparent_temperature ?? current.temperature_2m)}°C`}
-                />
-                <Metric
-                  emoji="💨"
-                  label="Vento"
-                  value={`${Math.round(current.wind_speed_10m)} km/h`}
-                />
-                <Metric
-                  emoji="🌪️"
-                  label="Rajadas"
-                  value={
-                    current.wind_gusts_10m != null
-                      ? `${Math.round(current.wind_gusts_10m)} km/h`
-                      : '--'
-                  }
-                />
-                <Metric emoji="🧭" label="Direção" value={direcaoVento(current.wind_direction_10m)} />
-                <Metric
-                  emoji="📊"
-                  label="Pressão"
-                  value={
-                    current.pressure_msl != null
-                      ? `${Math.round(current.pressure_msl)} hPa`
-                      : '--'
-                  }
-                />
-                <Metric
-                  emoji="💦"
-                  label="Ponto de orvalho"
-                  value={
-                    current.dew_point_2m != null
-                      ? `${Math.round(current.dew_point_2m)}°C`
-                      : '--'
-                  }
-                />
-                <Metric
-                  emoji="☁️"
-                  label="Nuvens"
-                  value={current.cloud_cover != null ? `${current.cloud_cover}%` : '--'}
-                />
-                <Metric
-                  emoji="☀️"
-                  label="Índice UV"
-                  value={current.uv != null ? `${Math.round(current.uv)}` : '--'}
-                />
-                <Metric
-                  emoji="☔"
-                  label="Chance de chuva"
-                  value={current.precipProb != null ? `${current.precipProb}%` : '--'}
-                />
-                <Metric emoji="🌅" label="Nascer do sol" value={formatTime(current.sunrise)} />
-                <Metric emoji="🌇" label="Pôr do sol" value={formatTime(current.sunset)} />
-              </ScrollView>
-            ) : aba === 'horario' ? (
+            {/* Busca — esconde na aba Sobre */}
+            {aba !== 'sobre' && (
               <>
-                <TextInput
-                  style={[styles.dateFilterInput, glass, { color: colors.text }]}
-                  placeholder="Filtrar por data (ex: 2026-08-06)"
-                  placeholderTextColor={colors.subtitle}
-                  value={dateFilter}
-                  onChangeText={setDateFilter}
-                />
-                {filteredWeather.length === 0 ? (
-                  <View style={styles.centerArea}>
-                    <Text style={styles.errorEmoji}>🔍</Text>
-                    <Text style={styles.errorText}>
-                      Nenhum horário para "{dateFilter.trim()}".
-                    </Text>
+                <View style={styles.searchRow}>
+                  <TextInput
+                    style={[styles.searchInput, glass, { color: colors.text }]}
+                    placeholder="Buscar cidade (ex: Valinhos, Lisboa...)"
+                    placeholderTextColor={colors.subtitle}
+                    value={searchText}
+                    onChangeText={setSearchText}
+                    onSubmitEditing={buscarCidade}
+                    returnKeyType="search"
+                    autoCapitalize="words"
+                  />
+                  <TouchableOpacity
+                    style={[styles.searchButton, { backgroundColor: colors.header }]}
+                    onPress={buscarCidade}
+                    disabled={searchingCity}
+                  >
+                    {searchingCity ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.searchButtonText}>🔍</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                {cityResults.length > 0 && (
+                  <View style={[styles.resultsBox, glass]}>
+                    {cityResults.map((c, idx) => (
+                      <TouchableOpacity
+                        key={`${c.id || idx}`}
+                        style={styles.resultItem}
+                        onPress={() => selecionarCidade(c)}
+                      >
+                        <Text style={[styles.resultName, { color: colors.text }]}>
+                          {c.name}
+                          {c.admin1 ? `, ${c.admin1}` : ''}
+                        </Text>
+                        <Text style={[styles.resultCountry, { color: colors.subtitle }]}>
+                          {c.country}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                ) : (
-                  <HourlyList />
+                )}
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipsContainer}
+                  style={styles.chipsScroll}
+                  nestedScrollEnabled
+                >
+                  {CIDADES_RAPIDAS.map((c) => (
+                    <TouchableOpacity
+                      key={c.nome}
+                      style={[
+                        styles.chip,
+                        glass,
+                        cidadeNome === c.nome && {
+                          backgroundColor: colors.header,
+                          borderColor: colors.header,
+                        },
+                      ]}
+                      onPress={() => selecionarCidade(c)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          {
+                            color:
+                              cidadeNome === c.nome ? '#fff' : colors.chipText,
+                          },
+                        ]}
+                      >
+                        {c.nome}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+
+                {current && !loading && !error && (
+                  <View style={[styles.currentCard, glass]}>
+                    <View style={styles.currentIconBox}>
+                      <Text style={styles.currentIcon}>
+                        {getWeatherIcon(current.weather_code)}
+                      </Text>
+                    </View>
+                    <View style={styles.currentInfo}>
+                      <Text style={[styles.currentTitle, { color: colors.text }]}>
+                        {cidadeNome}
+                        {cidadePais ? ` · ${cidadePais}` : ''}
+                      </Text>
+                      <Text style={[styles.currentTemp, { color: colors.highlight }]}>
+                        {Math.round(current.temperature_2m)}°C
+                      </Text>
+                      <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
+                        Sensação{' '}
+                        {Math.round(
+                          current.apparent_temperature ?? current.temperature_2m
+                        )}
+                        °C
+                      </Text>
+                      <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
+                        📈 {current.max != null ? Math.round(current.max) : '--'}° · 📉{' '}
+                        {current.min != null ? Math.round(current.min) : '--'}°
+                      </Text>
+                      <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
+                        📅 {formatFullDate(current.time)}
+                      </Text>
+                    </View>
+                  </View>
                 )}
               </>
-            ) : (
-              <DailyList />
             )}
+
+            {/* Conteúdo da aba */}
+            <View style={styles.contentArea}>
+              {loading && aba !== 'sobre' ? (
+                <View style={styles.centerArea}>
+                  <ActivityIndicator size="large" color="#fff" />
+                  <Text style={styles.loadingText}>
+                    Carregando previsão de {cidadeNome}...
+                  </Text>
+                </View>
+              ) : error && aba !== 'sobre' ? (
+                <View style={styles.centerArea}>
+                  <Text style={styles.errorEmoji}>😢</Text>
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity
+                    style={[styles.retryButton, { backgroundColor: colors.header }]}
+                    onPress={() => fetchWeather(latitude, longitude)}
+                  >
+                    <Text style={styles.retryButtonText}>Tentar novamente</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : aba === 'detalhes' && current ? (
+                <ScrollView
+                  style={[styles.listFlex, hideScrollbar]}
+                  contentContainerStyle={styles.metricsGrid}
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  <Metric emoji="💧" label="Umidade" value={`${current.relative_humidity_2m}%`} />
+                  <Metric
+                    emoji="🌡️"
+                    label="Sensação"
+                    value={`${Math.round(current.apparent_temperature ?? current.temperature_2m)}°C`}
+                  />
+                  <Metric
+                    emoji="💨"
+                    label="Vento"
+                    value={`${Math.round(current.wind_speed_10m)} km/h`}
+                  />
+                  <Metric
+                    emoji="🌪️"
+                    label="Rajadas"
+                    value={
+                      current.wind_gusts_10m != null
+                        ? `${Math.round(current.wind_gusts_10m)} km/h`
+                        : '--'
+                    }
+                  />
+                  <Metric emoji="🧭" label="Direção" value={direcaoVento(current.wind_direction_10m)} />
+                  <Metric
+                    emoji="📊"
+                    label="Pressão"
+                    value={
+                      current.pressure_msl != null
+                        ? `${Math.round(current.pressure_msl)} hPa`
+                        : '--'
+                    }
+                  />
+                  <Metric
+                    emoji="💦"
+                    label="Ponto de orvalho"
+                    value={
+                      current.dew_point_2m != null
+                        ? `${Math.round(current.dew_point_2m)}°C`
+                        : '--'
+                    }
+                  />
+                  <Metric
+                    emoji="☁️"
+                    label="Nuvens"
+                    value={current.cloud_cover != null ? `${current.cloud_cover}%` : '--'}
+                  />
+                  <Metric
+                    emoji="☀️"
+                    label="Índice UV"
+                    value={current.uv != null ? `${Math.round(current.uv)}` : '--'}
+                  />
+                  <Metric
+                    emoji="☔"
+                    label="Chance de chuva"
+                    value={current.precipProb != null ? `${current.precipProb}%` : '--'}
+                  />
+                  <Metric emoji="🌅" label="Nascer do sol" value={formatTime(current.sunrise)} />
+                  <Metric emoji="🌇" label="Pôr do sol" value={formatTime(current.sunset)} />
+                </ScrollView>
+              ) : aba === 'horario' ? (
+                <>
+                  <TextInput
+                    style={[styles.dateFilterInput, glass, { color: colors.text }]}
+                    placeholder="Filtrar por data (ex: 2026-08-06)"
+                    placeholderTextColor={colors.subtitle}
+                    value={dateFilter}
+                    onChangeText={setDateFilter}
+                  />
+                  {filteredWeather.length === 0 ? (
+                    <View style={styles.centerArea}>
+                      <Text style={styles.errorEmoji}>🔍</Text>
+                      <Text style={styles.errorText}>
+                        Nenhum horário para "{dateFilter.trim()}".
+                      </Text>
+                    </View>
+                  ) : (
+                    <HourlyList />
+                  )}
+                </>
+              ) : aba === 'diario' ? (
+                <DailyList />
+              ) : (
+                /* ========== PÁGINA SOBRE ========== */
+                <ScrollView
+                  style={[styles.listFlex, hideScrollbar]}
+                  contentContainerStyle={styles.aboutContent}
+                  showsVerticalScrollIndicator={false}
+                >
+                  <View style={[styles.aboutCard, glass]}>
+                    <Text style={styles.aboutEmoji}>🌤</Text>
+                    <Text style={[styles.aboutTitle, { color: colors.text }]}>
+                      Previsão do Tempo
+                    </Text>
+                    <Text style={[styles.aboutText, { color: colors.subtitle }]}>
+                      App de clima feito em React Native (Expo) para a atividade prática de
+                      consumo de API REST. Busca dados em tempo real da Open-Meteo e mostra
+                      temperatura, umidade, vento, UV, nascer/pôr do sol e previsões por hora
+                      e por dia.
+                    </Text>
+                  </View>
+
+                  <View style={[styles.aboutCard, glass]}>
+                    <Text style={[styles.aboutSection, { color: colors.text }]}>
+                      O que você encontra aqui
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Clima atual da cidade escolhida
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Detalhes: umidade, pressão, ponto de orvalho, UV...
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Previsão hora a hora
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Previsão dos próximos 7 dias
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Busca de qualquer cidade do mundo
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Fundo que muda conforme o tempo
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • Tema claro e escuro
+                    </Text>
+                  </View>
+
+                  <View style={[styles.aboutCard, glass]}>
+                    <Text style={[styles.aboutSection, { color: colors.text }]}>
+                      Tecnologias
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • React Native + Expo
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • fetch + async/await
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • FlatList / ScrollView
+                    </Text>
+                    <Text style={[styles.aboutBullet, { color: colors.subtitle }]}>
+                      • API Open-Meteo (gratuita, sem chave)
+                    </Text>
+                  </View>
+
+                  <View style={[styles.aboutCard, glass]}>
+                    <Text style={[styles.aboutSection, { color: colors.text }]}>
+                      Atividade
+                    </Text>
+                    <Text style={[styles.aboutText, { color: colors.subtitle }]}>
+                      Projeto da disciplina de Desenvolvimento de Sistemas — consumo de API
+                      REST em React Native. SENAI / SESI.
+                    </Text>
+                  </View>
+
+                  <Text style={styles.copyright}>© Thales Dev</Text>
+                </ScrollView>
+              )}
+            </View>
+
+            {/* ========== NAV EMBAIXO ========== */}
+            <View style={[styles.bottomNav, { backgroundColor: colors.navBg }, glass]}>
+              {navItems.map((item) => {
+                const ativo = aba === item.key;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={styles.navItem}
+                    onPress={() => setAba(item.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.navIcon, ativo && { opacity: 1 }]}>
+                      {item.icon}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.navLabel,
+                        {
+                          color: ativo ? colors.tabActive : colors.subtitle,
+                          fontWeight: ativo ? '800' : '500',
+                        },
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </SafeAreaView>
       </View>
@@ -723,7 +807,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'web' ? 20 : 48,
+    paddingTop: Platform.OS === 'web' ? 16 : 40,
   },
   inner: {
     flex: 1,
@@ -739,10 +823,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '800',
     flex: 1,
     color: '#fff',
@@ -751,31 +835,31 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   themeButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   themeButtonText: {
-    fontSize: 20,
+    fontSize: 18,
   },
   searchRow: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 8,
     gap: 8,
   },
   searchInput: {
     flex: 1,
     borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 11,
     fontSize: 15,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   searchButton: {
-    width: 48,
+    width: 46,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -785,12 +869,12 @@ const styles = StyleSheet.create({
   },
   resultsBox: {
     marginHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 8,
     borderRadius: 14,
     overflow: 'hidden',
   },
   resultItem: {
-    paddingVertical: 12,
+    paddingVertical: 11,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.12)',
@@ -804,8 +888,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   chipsScroll: {
-    maxHeight: 44,
-    marginBottom: 12,
+    maxHeight: 42,
+    marginBottom: 10,
     flexGrow: 0,
   },
   chipsContainer: {
@@ -815,7 +899,7 @@ const styles = StyleSheet.create({
   },
   chip: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: 20,
   },
   chipText: {
@@ -825,56 +909,44 @@ const styles = StyleSheet.create({
   currentCard: {
     borderRadius: 18,
     marginHorizontal: 20,
-    marginBottom: 12,
+    marginBottom: 10,
     flexDirection: 'row',
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
   },
   currentIconBox: {
-    marginRight: 14,
+    marginRight: 12,
   },
   currentIcon: {
-    fontSize: 52,
+    fontSize: 48,
   },
   currentInfo: {
     flex: 1,
   },
   currentTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     marginBottom: 2,
   },
   currentTemp: {
-    fontSize: 36,
+    fontSize: 34,
     fontWeight: '800',
     marginBottom: 2,
   },
   currentDetails: {
-    fontSize: 13,
+    fontSize: 12,
     marginBottom: 1,
     fontWeight: '500',
   },
-  tabsRow: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 10,
-    gap: 8,
-  },
-  tabBtn: {
+  contentArea: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '700',
+    minHeight: 0, // importante pro scroll no web
   },
   metricsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingBottom: 16,
     gap: 10,
     justifyContent: 'space-between',
   },
@@ -900,7 +972,7 @@ const styles = StyleSheet.create({
   },
   dateFilterInput: {
     marginHorizontal: 20,
-    marginBottom: 10,
+    marginBottom: 8,
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -941,17 +1013,11 @@ const styles = StyleSheet.create({
   },
   listFlex: {
     flex: 1,
-    ...(Platform.OS === 'web'
-      ? {
-          // força área scrollável no navegador
-          overflow: 'auto',
-          height: '100%',
-        }
-      : {}),
+    minHeight: 0,
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 32,
+    paddingBottom: 16,
   },
   card: {
     borderRadius: 16,
@@ -1024,5 +1090,72 @@ const styles = StyleSheet.create({
   dailyRight: {
     width: 56,
     alignItems: 'flex-end',
+  },
+  // Sobre
+  aboutContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 12,
+  },
+  aboutCard: {
+    borderRadius: 18,
+    padding: 18,
+  },
+  aboutEmoji: {
+    fontSize: 40,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  aboutTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  aboutSection: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 8,
+  },
+  aboutText: {
+    fontSize: 14,
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  aboutBullet: {
+    fontSize: 14,
+    lineHeight: 24,
+  },
+  copyright: {
+    textAlign: 'center',
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  // Nav inferior
+  bottomNav: {
+    flexDirection: 'row',
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'web' ? 10 : 14,
+    paddingHorizontal: 6,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    marginHorizontal: 0,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  navIcon: {
+    fontSize: 20,
+    marginBottom: 2,
+    opacity: 0.85,
+  },
+  navLabel: {
+    fontSize: 11,
   },
 });
