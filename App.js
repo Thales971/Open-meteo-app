@@ -13,9 +13,10 @@ import {
   ScrollView,
   Platform,
   ImageBackground,
+  useWindowDimensions,
 } from 'react-native';
 
-// Fundos locais (pasta fundos-clima na raiz do projeto)
+// Fundos locais (pasta fundos-clima na raiz)
 const FUNDOS = {
   ensolarado: require('./fundos-clima/ensolarado.jpg'),
   parcialmente_nublado: require('./fundos-clima/parcialmente_nublado.jpg'),
@@ -37,7 +38,23 @@ const CIDADES_RAPIDAS = [
   { nome: 'Salvador', lat: -12.9714, lon: -38.5014 },
 ];
 
+// Estilo liquid glass sem instalar lib (blur só no web)
+const glassStyle = (dark) => ({
+  backgroundColor: dark ? 'rgba(30, 41, 59, 0.45)' : 'rgba(255, 255, 255, 0.28)',
+  borderWidth: 1,
+  borderColor: dark ? 'rgba(148, 163, 184, 0.25)' : 'rgba(255, 255, 255, 0.45)',
+  ...(Platform.OS === 'web'
+    ? {
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+      }
+    : {}),
+});
+
 export default function App() {
+  const { width } = useWindowDimensions();
+  const isWide = width >= 700;
+
   const [weather, setWeather] = useState([]);
   const [daily, setDaily] = useState([]);
   const [current, setCurrent] = useState(null);
@@ -56,14 +73,12 @@ export default function App() {
 
   const [dateFilter, setDateFilter] = useState('');
   const [darkMode, setDarkMode] = useState(false);
-  // Abas sem lib de navegação (só useState)
-  const [aba, setAba] = useState('detalhes'); // detalhes | horario | diario
+  const [aba, setAba] = useState('detalhes');
 
   useEffect(() => {
     fetchWeather(latitude, longitude);
   }, [latitude, longitude]);
 
-  // ===================== FETCH DO CLIMA (máximo útil da API) =====================
   const fetchWeather = async (lat, lon) => {
     try {
       setError(null);
@@ -82,10 +97,7 @@ export default function App() {
         `&timezone=auto&forecast_days=7`;
 
       const response = await fetch(url);
-
-      if (!response.ok) {
-        throw new Error('Falha na resposta da API');
-      }
+      if (!response.ok) throw new Error('Falha na resposta da API');
 
       const data = await response.json();
 
@@ -142,7 +154,6 @@ export default function App() {
     }
   };
 
-  // ===================== GEOCODING =====================
   const buscarCidade = async () => {
     const termo = searchText.trim();
     if (!termo) return;
@@ -158,7 +169,6 @@ export default function App() {
           termo
         )}&count=6&language=pt&format=json`
       );
-
       if (!response.ok) throw new Error('Erro na busca de cidade');
 
       const data = await response.json();
@@ -197,7 +207,6 @@ export default function App() {
     fetchWeather(latitude, longitude);
   };
 
-  // ===================== HELPERS =====================
   const getWeatherIcon = (code) => {
     if (code === 0) return '☀️';
     if (code === 1) return '🌤️';
@@ -212,12 +221,18 @@ export default function App() {
     return '🌡️';
   };
 
-  const getFundoPorCodigo = (code) => {
-    if (code === 0) return FUNDOS.ensolarado;
-    if (code === 1 || code === 2) return FUNDOS.parcialmente_nublado;
+  // Fundo por código + dia/noite (is_day da API)
+  const getFundoPorCodigo = (code, isDay = 1) => {
+    const noite = isDay === 0;
+
+    if (code === 0) return noite ? FUNDOS.neblina : FUNDOS.ensolarado;
+    if (code === 1 || code === 2) {
+      return noite ? FUNDOS.nublado : FUNDOS.parcialmente_nublado;
+    }
     if (code === 3) return FUNDOS.nublado;
     if (code === 45 || code === 48) return FUNDOS.neblina;
-    if (code >= 51 && code <= 67) return FUNDOS.chuva;
+    if (code >= 51 && code <= 57) return FUNDOS.chuva; // garoa
+    if (code >= 61 && code <= 67) return FUNDOS.chuva;
     if (code >= 80 && code <= 82) return FUNDOS.chuva;
     if (code >= 71 && code <= 77) return FUNDOS.neve;
     if (code >= 95) return FUNDOS.tempestade;
@@ -261,27 +276,31 @@ export default function App() {
   });
 
   const colors = {
-    background: darkMode ? '#0f172a' : '#f0f4f8',
-    card: darkMode ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)',
     header: darkMode ? '#38bdf8' : '#1e88e5',
     title: darkMode ? '#e2e8f0' : '#1e293b',
-    subtitle: darkMode ? '#94a3b8' : '#64748b',
+    subtitle: darkMode ? '#94a3b8' : '#475569',
     text: darkMode ? '#f8fafc' : '#0f172a',
-    highlight: darkMode ? '#fbbf24' : '#f59e0b',
-    inputBg: darkMode ? 'rgba(51,65,85,0.95)' : 'rgba(226,232,240,0.95)',
-    accent: darkMode ? '#34d399' : '#059669',
-    chip: darkMode ? 'rgba(51,65,85,0.9)' : 'rgba(224,242,254,0.95)',
-    chipText: darkMode ? '#e2e8f0' : '#0369a1',
-    overlay: darkMode ? 'rgba(15,23,42,0.55)' : 'rgba(15,23,42,0.25)',
+    highlight: darkMode ? '#fbbf24' : '#ea580c',
+    inputBg: darkMode ? 'rgba(51,65,85,0.55)' : 'rgba(255,255,255,0.35)',
+    chip: darkMode ? 'rgba(51,65,85,0.5)' : 'rgba(255,255,255,0.35)',
+    chipText: darkMode ? '#e2e8f0' : '#0f172a',
+    overlay: darkMode ? 'rgba(15,23,42,0.45)' : 'rgba(15,23,42,0.18)',
     tabActive: darkMode ? '#38bdf8' : '#1e88e5',
-    tabInactive: darkMode ? 'rgba(51,65,85,0.9)' : 'rgba(255,255,255,0.85)',
+    tabInactive: darkMode ? 'rgba(51,65,85,0.45)' : 'rgba(255,255,255,0.3)',
   };
 
-  const fundoAtual = getFundoPorCodigo(current?.weather_code ?? 3);
+  const glass = glassStyle(darkMode);
+  const fundoAtual = getFundoPorCodigo(
+    current?.weather_code ?? 3,
+    current?.is_day ?? 1
+  );
+
+  // Largura dos cards de métrica (responsivo)
+  const metricWidth = isWide ? '23%' : width < 360 ? '100%' : '47%';
 
   // ===================== RENDER ITEMS =====================
   const renderHourly = ({ item }) => (
-    <View style={[styles.card, { backgroundColor: colors.card }]}>
+    <View style={[styles.card, glass]}>
       <View style={styles.timeBox}>
         <Text style={[styles.timeText, { color: colors.text }]}>
           {formatTime(item.time)}
@@ -290,11 +309,9 @@ export default function App() {
           {formatDate(item.time)}
         </Text>
       </View>
-
       <View style={styles.iconBox}>
         <Text style={styles.weatherIcon}>{getWeatherIcon(item.code)}</Text>
       </View>
-
       <View style={styles.info}>
         <Text style={[styles.temperature, { color: colors.highlight }]}>
           {Math.round(item.temperature)}°C
@@ -312,7 +329,7 @@ export default function App() {
   );
 
   const renderDaily = ({ item }) => (
-    <View style={[styles.dailyCard, { backgroundColor: colors.card }]}>
+    <View style={[styles.dailyCard, glass]}>
       <View style={styles.dailyLeft}>
         <Text style={[styles.dailyDate, { color: colors.text }]}>
           {formatDate(item.time)}
@@ -335,351 +352,360 @@ export default function App() {
         <Text style={[styles.detailsText, { color: colors.subtitle }]}>
           💨 {item.windMax != null ? Math.round(item.windMax) : '--'}
         </Text>
-        <Text style={[styles.detailsText, { color: colors.subtitle }]}>
-          km/h
-        </Text>
+        <Text style={[styles.detailsText, { color: colors.subtitle }]}>km/h</Text>
       </View>
     </View>
   );
 
   const Metric = ({ emoji, label, value }) => (
-    <View style={[styles.metricCard, { backgroundColor: colors.card }]}>
+    <View style={[styles.metricCard, glass, { width: metricWidth }]}>
       <Text style={styles.metricEmoji}>{emoji}</Text>
       <Text style={[styles.metricValue, { color: colors.text }]}>{value}</Text>
       <Text style={[styles.metricLabel, { color: colors.subtitle }]}>{label}</Text>
     </View>
   );
 
-  // ===================== UI =====================
+  // Lista: no web usa ScrollView (mouse wheel funciona); no mobile FlatList (requisito)
+  const HourlyList = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <ScrollView
+          style={styles.listFlex}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+        >
+          {filteredWeather.map((item) => (
+            <View key={item.id}>{renderHourly({ item })}</View>
+          ))}
+        </ScrollView>
+      );
+    }
+    return (
+      <FlatList
+        style={styles.listFlex}
+        data={filteredWeather}
+        keyExtractor={(item) => item.id}
+        renderItem={renderHourly}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        removeClippedSubviews={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.header]}
+            tintColor="#fff"
+          />
+        }
+      />
+    );
+  };
+
+  const DailyList = () => {
+    if (Platform.OS === 'web') {
+      return (
+        <ScrollView
+          style={styles.listFlex}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator
+        >
+          {daily.map((item) => (
+            <View key={item.id}>{renderDaily({ item })}</View>
+          ))}
+        </ScrollView>
+      );
+    }
+    return (
+      <FlatList
+        style={styles.listFlex}
+        data={daily}
+        keyExtractor={(item) => item.id}
+        renderItem={renderDaily}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        removeClippedSubviews={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.header]}
+            tintColor="#fff"
+          />
+        }
+      />
+    );
+  };
+
   return (
     <ImageBackground source={fundoAtual} style={styles.bg} resizeMode="cover">
       <View style={[styles.overlay, { backgroundColor: colors.overlay }]}>
         <SafeAreaView style={styles.container}>
-          {/* Cabeçalho */}
-          <View style={styles.headerRow}>
-            <Text style={[styles.headerTitle, { color: '#fff' }]}>
-              🌤 Previsão do Tempo
-            </Text>
-            <TouchableOpacity
-              style={[styles.themeButton, { backgroundColor: colors.card }]}
-              onPress={() => setDarkMode(!darkMode)}
-            >
-              <Text style={styles.themeButtonText}>{darkMode ? '☀️' : '🌙'}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Busca */}
-          <View style={styles.searchRow}>
-            <TextInput
-              style={[
-                styles.searchInput,
-                { backgroundColor: colors.inputBg, color: colors.text },
-              ]}
-              placeholder="Buscar cidade (ex: Valinhos, Lisboa...)"
-              placeholderTextColor={colors.subtitle}
-              value={searchText}
-              onChangeText={setSearchText}
-              onSubmitEditing={buscarCidade}
-              returnKeyType="search"
-              autoCapitalize="words"
-            />
-            <TouchableOpacity
-              style={[styles.searchButton, { backgroundColor: colors.header }]}
-              onPress={buscarCidade}
-              disabled={searchingCity}
-            >
-              {searchingCity ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text style={styles.searchButtonText}>🔍</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Resultados geocoding */}
-          {cityResults.length > 0 && (
-            <View style={[styles.resultsBox, { backgroundColor: colors.card }]}>
-              {cityResults.map((c, idx) => (
-                <TouchableOpacity
-                  key={`${c.id || idx}`}
-                  style={styles.resultItem}
-                  onPress={() => selecionarCidade(c)}
-                >
-                  <Text style={[styles.resultName, { color: colors.text }]}>
-                    {c.name}
-                    {c.admin1 ? `, ${c.admin1}` : ''}
-                  </Text>
-                  <Text style={[styles.resultCountry, { color: colors.subtitle }]}>
-                    {c.country}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* Chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.chipsContainer}
-            style={styles.chipsScroll}
-            nestedScrollEnabled
-          >
-            {CIDADES_RAPIDAS.map((c) => (
+          <View style={[styles.inner, isWide && styles.innerWide]}>
+            {/* Cabeçalho */}
+            <View style={styles.headerRow}>
+              <Text style={styles.headerTitle}>🌤 Previsão do Tempo</Text>
               <TouchableOpacity
-                key={c.nome}
-                style={[
-                  styles.chip,
-                  {
-                    backgroundColor:
-                      cidadeNome === c.nome ? colors.header : colors.chip,
-                  },
-                ]}
-                onPress={() => selecionarCidade(c)}
+                style={[styles.themeButton, glass]}
+                onPress={() => setDarkMode(!darkMode)}
               >
-                <Text
-                  style={[
-                    styles.chipText,
-                    {
-                      color: cidadeNome === c.nome ? '#fff' : colors.chipText,
-                    },
-                  ]}
-                >
-                  {c.nome}
-                </Text>
+                <Text style={styles.themeButtonText}>{darkMode ? '☀️' : '🌙'}</Text>
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Card clima atual */}
-          {current && !loading && !error && (
-            <View style={[styles.currentCard, { backgroundColor: colors.card }]}>
-              <View style={styles.currentIconBox}>
-                <Text style={styles.currentIcon}>
-                  {getWeatherIcon(current.weather_code)}
-                </Text>
-              </View>
-              <View style={styles.currentInfo}>
-                <Text style={[styles.currentTitle, { color: colors.text }]}>
-                  {cidadeNome}
-                  {cidadePais ? ` · ${cidadePais}` : ''}
-                </Text>
-                <Text style={[styles.currentTemp, { color: colors.highlight }]}>
-                  {Math.round(current.temperature_2m)}°C
-                </Text>
-                <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
-                  Sensação {Math.round(current.apparent_temperature ?? current.temperature_2m)}°C
-                </Text>
-                <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
-                  📈 {current.max != null ? Math.round(current.max) : '--'}° · 📉{' '}
-                  {current.min != null ? Math.round(current.min) : '--'}°
-                </Text>
-                <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
-                  📅 {formatFullDate(current.time)}
-                </Text>
-              </View>
             </View>
-          )}
 
-          {/* Abas */}
-          {!loading && !error && current && (
-            <View style={styles.tabsRow}>
-              {[
-                { key: 'detalhes', label: 'Detalhes' },
-                { key: 'horario', label: 'Por hora' },
-                { key: 'diario', label: '7 dias' },
-              ].map((t) => (
+            {/* Busca */}
+            <View style={styles.searchRow}>
+              <TextInput
+                style={[styles.searchInput, glass, { color: colors.text }]}
+                placeholder="Buscar cidade (ex: Valinhos, Lisboa...)"
+                placeholderTextColor={colors.subtitle}
+                value={searchText}
+                onChangeText={setSearchText}
+                onSubmitEditing={buscarCidade}
+                returnKeyType="search"
+                autoCapitalize="words"
+              />
+              <TouchableOpacity
+                style={[styles.searchButton, { backgroundColor: colors.header }]}
+                onPress={buscarCidade}
+                disabled={searchingCity}
+              >
+                {searchingCity ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.searchButtonText}>🔍</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Resultados */}
+            {cityResults.length > 0 && (
+              <View style={[styles.resultsBox, glass]}>
+                {cityResults.map((c, idx) => (
+                  <TouchableOpacity
+                    key={`${c.id || idx}`}
+                    style={styles.resultItem}
+                    onPress={() => selecionarCidade(c)}
+                  >
+                    <Text style={[styles.resultName, { color: colors.text }]}>
+                      {c.name}
+                      {c.admin1 ? `, ${c.admin1}` : ''}
+                    </Text>
+                    <Text style={[styles.resultCountry, { color: colors.subtitle }]}>
+                      {c.country}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Chips */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsContainer}
+              style={styles.chipsScroll}
+              nestedScrollEnabled
+            >
+              {CIDADES_RAPIDAS.map((c) => (
                 <TouchableOpacity
-                  key={t.key}
+                  key={c.nome}
                   style={[
-                    styles.tabBtn,
-                    {
-                      backgroundColor:
-                        aba === t.key ? colors.tabActive : colors.tabInactive,
-                    },
+                    styles.chip,
+                    glass,
+                    cidadeNome === c.nome && { backgroundColor: colors.header, borderColor: colors.header },
                   ]}
-                  onPress={() => setAba(t.key)}
+                  onPress={() => selecionarCidade(c)}
                 >
                   <Text
                     style={[
-                      styles.tabText,
-                      { color: aba === t.key ? '#fff' : colors.text },
+                      styles.chipText,
+                      { color: cidadeNome === c.nome ? '#fff' : colors.chipText },
                     ]}
                   >
-                    {t.label}
+                    {c.nome}
                   </Text>
                 </TouchableOpacity>
               ))}
-            </View>
-          )}
-
-          {/* Conteúdo das abas */}
-          {loading ? (
-            <View style={styles.centerArea}>
-              <ActivityIndicator size="large" color="#fff" />
-              <Text style={[styles.loadingText, { color: '#fff' }]}>
-                Carregando previsão de {cidadeNome}...
-              </Text>
-            </View>
-          ) : error ? (
-            <View style={styles.centerArea}>
-              <Text style={styles.errorEmoji}>😢</Text>
-              <Text style={[styles.errorText, { color: '#fff' }]}>{error}</Text>
-              <TouchableOpacity
-                style={[styles.retryButton, { backgroundColor: colors.header }]}
-                onPress={() => fetchWeather(latitude, longitude)}
-              >
-                <Text style={styles.retryButtonText}>Tentar novamente</Text>
-              </TouchableOpacity>
-            </View>
-          ) : aba === 'detalhes' && current ? (
-            <ScrollView
-              style={styles.listFlex}
-              contentContainerStyle={styles.metricsGrid}
-              showsVerticalScrollIndicator={Platform.OS === 'web'}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor="#fff"
-                  colors={[colors.header]}
-                />
-              }
-            >
-              <Metric
-                emoji="💧"
-                label="Umidade"
-                value={`${current.relative_humidity_2m}%`}
-              />
-              <Metric
-                emoji="🌡️"
-                label="Sensação"
-                value={`${Math.round(current.apparent_temperature ?? current.temperature_2m)}°C`}
-              />
-              <Metric
-                emoji="💨"
-                label="Vento"
-                value={`${Math.round(current.wind_speed_10m)} km/h`}
-              />
-              <Metric
-                emoji="🌪️"
-                label="Rajadas"
-                value={
-                  current.wind_gusts_10m != null
-                    ? `${Math.round(current.wind_gusts_10m)} km/h`
-                    : '--'
-                }
-              />
-              <Metric
-                emoji="🧭"
-                label="Direção"
-                value={direcaoVento(current.wind_direction_10m)}
-              />
-              <Metric
-                emoji="📊"
-                label="Pressão"
-                value={
-                  current.pressure_msl != null
-                    ? `${Math.round(current.pressure_msl)} hPa`
-                    : '--'
-                }
-              />
-              <Metric
-                emoji="💦"
-                label="Ponto de orvalho"
-                value={
-                  current.dew_point_2m != null
-                    ? `${Math.round(current.dew_point_2m)}°C`
-                    : '--'
-                }
-              />
-              <Metric
-                emoji="☁️"
-                label="Nuvens"
-                value={
-                  current.cloud_cover != null ? `${current.cloud_cover}%` : '--'
-                }
-              />
-              <Metric
-                emoji="☀️"
-                label="Índice UV"
-                value={current.uv != null ? `${Math.round(current.uv)}` : '--'}
-              />
-              <Metric
-                emoji="☔"
-                label="Chance de chuva"
-                value={
-                  current.precipProb != null ? `${current.precipProb}%` : '--'
-                }
-              />
-              <Metric
-                emoji="🌅"
-                label="Nascer do sol"
-                value={formatTime(current.sunrise)}
-              />
-              <Metric
-                emoji="🌇"
-                label="Pôr do sol"
-                value={formatTime(current.sunset)}
-              />
             </ScrollView>
-          ) : aba === 'horario' ? (
-            <>
-              <TextInput
-                style={[
-                  styles.dateFilterInput,
-                  { backgroundColor: colors.inputBg, color: colors.text },
-                ]}
-                placeholder="Filtrar por data (ex: 2026-08-06)"
-                placeholderTextColor={colors.subtitle}
-                value={dateFilter}
-                onChangeText={setDateFilter}
-              />
-              {filteredWeather.length === 0 ? (
-                <View style={styles.centerArea}>
-                  <Text style={styles.errorEmoji}>🔍</Text>
-                  <Text style={[styles.errorText, { color: '#fff' }]}>
-                    Nenhum horário para "{dateFilter.trim()}".
+
+            {/* Card atual */}
+            {current && !loading && !error && (
+              <View style={[styles.currentCard, glass]}>
+                <View style={styles.currentIconBox}>
+                  <Text style={styles.currentIcon}>
+                    {getWeatherIcon(current.weather_code)}
                   </Text>
                 </View>
-              ) : (
-                <FlatList
-                  style={styles.listFlex}
-                  data={filteredWeather}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderHourly}
-                  contentContainerStyle={styles.listContent}
-                  showsVerticalScrollIndicator={Platform.OS === 'web'}
-                  keyboardShouldPersistTaps="handled"
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                      colors={[colors.header]}
-                      tintColor="#fff"
-                    />
+                <View style={styles.currentInfo}>
+                  <Text style={[styles.currentTitle, { color: colors.text }]}>
+                    {cidadeNome}
+                    {cidadePais ? ` · ${cidadePais}` : ''}
+                  </Text>
+                  <Text style={[styles.currentTemp, { color: colors.highlight }]}>
+                    {Math.round(current.temperature_2m)}°C
+                  </Text>
+                  <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
+                    Sensação{' '}
+                    {Math.round(
+                      current.apparent_temperature ?? current.temperature_2m
+                    )}
+                    °C
+                  </Text>
+                  <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
+                    📈 {current.max != null ? Math.round(current.max) : '--'}° · 📉{' '}
+                    {current.min != null ? Math.round(current.min) : '--'}°
+                  </Text>
+                  <Text style={[styles.currentDetails, { color: colors.subtitle }]}>
+                    📅 {formatFullDate(current.time)}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Abas */}
+            {!loading && !error && current && (
+              <View style={styles.tabsRow}>
+                {[
+                  { key: 'detalhes', label: 'Detalhes' },
+                  { key: 'horario', label: 'Por hora' },
+                  { key: 'diario', label: '7 dias' },
+                ].map((t) => (
+                  <TouchableOpacity
+                    key={t.key}
+                    style={[
+                      styles.tabBtn,
+                      glass,
+                      aba === t.key && {
+                        backgroundColor: colors.tabActive,
+                        borderColor: colors.tabActive,
+                      },
+                    ]}
+                    onPress={() => setAba(t.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.tabText,
+                        { color: aba === t.key ? '#fff' : colors.text },
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {/* Conteúdo */}
+            {loading ? (
+              <View style={styles.centerArea}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.loadingText}>
+                  Carregando previsão de {cidadeNome}...
+                </Text>
+              </View>
+            ) : error ? (
+              <View style={styles.centerArea}>
+                <Text style={styles.errorEmoji}>😢</Text>
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { backgroundColor: colors.header }]}
+                  onPress={() => fetchWeather(latitude, longitude)}
+                >
+                  <Text style={styles.retryButtonText}>Tentar novamente</Text>
+                </TouchableOpacity>
+              </View>
+            ) : aba === 'detalhes' && current ? (
+              <ScrollView
+                style={styles.listFlex}
+                contentContainerStyle={styles.metricsGrid}
+                showsVerticalScrollIndicator={Platform.OS === 'web'}
+                keyboardShouldPersistTaps="handled"
+                // no web o ScrollView responde melhor ao mouse
+                {...(Platform.OS === 'web' ? { scrollEventThrottle: 16 } : {})}
+              >
+                <Metric emoji="💧" label="Umidade" value={`${current.relative_humidity_2m}%`} />
+                <Metric
+                  emoji="🌡️"
+                  label="Sensação"
+                  value={`${Math.round(current.apparent_temperature ?? current.temperature_2m)}°C`}
+                />
+                <Metric
+                  emoji="💨"
+                  label="Vento"
+                  value={`${Math.round(current.wind_speed_10m)} km/h`}
+                />
+                <Metric
+                  emoji="🌪️"
+                  label="Rajadas"
+                  value={
+                    current.wind_gusts_10m != null
+                      ? `${Math.round(current.wind_gusts_10m)} km/h`
+                      : '--'
                   }
                 />
-              )}
-            </>
-          ) : (
-            <FlatList
-              style={styles.listFlex}
-              data={daily}
-              keyExtractor={(item) => item.id}
-              renderItem={renderDaily}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={Platform.OS === 'web'}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  colors={[colors.header]}
-                  tintColor="#fff"
+                <Metric emoji="🧭" label="Direção" value={direcaoVento(current.wind_direction_10m)} />
+                <Metric
+                  emoji="📊"
+                  label="Pressão"
+                  value={
+                    current.pressure_msl != null
+                      ? `${Math.round(current.pressure_msl)} hPa`
+                      : '--'
+                  }
                 />
-              }
-            />
-          )}
+                <Metric
+                  emoji="💦"
+                  label="Ponto de orvalho"
+                  value={
+                    current.dew_point_2m != null
+                      ? `${Math.round(current.dew_point_2m)}°C`
+                      : '--'
+                  }
+                />
+                <Metric
+                  emoji="☁️"
+                  label="Nuvens"
+                  value={current.cloud_cover != null ? `${current.cloud_cover}%` : '--'}
+                />
+                <Metric
+                  emoji="☀️"
+                  label="Índice UV"
+                  value={current.uv != null ? `${Math.round(current.uv)}` : '--'}
+                />
+                <Metric
+                  emoji="☔"
+                  label="Chance de chuva"
+                  value={current.precipProb != null ? `${current.precipProb}%` : '--'}
+                />
+                <Metric emoji="🌅" label="Nascer do sol" value={formatTime(current.sunrise)} />
+                <Metric emoji="🌇" label="Pôr do sol" value={formatTime(current.sunset)} />
+              </ScrollView>
+            ) : aba === 'horario' ? (
+              <>
+                <TextInput
+                  style={[styles.dateFilterInput, glass, { color: colors.text }]}
+                  placeholder="Filtrar por data (ex: 2026-08-06)"
+                  placeholderTextColor={colors.subtitle}
+                  value={dateFilter}
+                  onChangeText={setDateFilter}
+                />
+                {filteredWeather.length === 0 ? (
+                  <View style={styles.centerArea}>
+                    <Text style={styles.errorEmoji}>🔍</Text>
+                    <Text style={styles.errorText}>
+                      Nenhum horário para "{dateFilter.trim()}".
+                    </Text>
+                  </View>
+                ) : (
+                  <HourlyList />
+                )}
+              </>
+            ) : (
+              <DailyList />
+            )}
+          </View>
         </SafeAreaView>
       </View>
     </ImageBackground>
@@ -690,15 +716,23 @@ const styles = StyleSheet.create({
   bg: {
     flex: 1,
     width: '100%',
-    height: '100%',
+    height: Platform.OS === 'web' ? '100vh' : '100%',
   },
   overlay: {
     flex: 1,
   },
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'web' ? 24 : 48,
-    ...(Platform.OS === 'web' ? { height: '100vh', overflow: 'hidden' } : {}),
+    paddingTop: Platform.OS === 'web' ? 20 : 48,
+  },
+  inner: {
+    flex: 1,
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'center',
+  },
+  innerWide: {
+    paddingHorizontal: 8,
   },
   headerRow: {
     flexDirection: 'row',
@@ -711,7 +745,8 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     flex: 1,
-    textShadowColor: 'rgba(0,0,0,0.35)',
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
@@ -733,15 +768,15 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 12,
     fontSize: 15,
     ...(Platform.OS === 'web' ? { outlineStyle: 'none' } : {}),
   },
   searchButton: {
     width: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -751,14 +786,14 @@ const styles = StyleSheet.create({
   resultsBox: {
     marginHorizontal: 20,
     marginBottom: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     overflow: 'hidden',
   },
   resultItem: {
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.06)',
+    borderBottomColor: 'rgba(255,255,255,0.12)',
   },
   resultName: {
     fontSize: 15,
@@ -788,7 +823,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   currentCard: {
-    borderRadius: 16,
+    borderRadius: 18,
     marginHorizontal: 20,
     marginBottom: 12,
     flexDirection: 'row',
@@ -828,7 +863,7 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
   },
   tabText: {
@@ -839,13 +874,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    paddingBottom: 28,
+    paddingBottom: 32,
     gap: 10,
     justifyContent: 'space-between',
   },
   metricCard: {
-    width: '47%',
-    borderRadius: 14,
+    borderRadius: 16,
     paddingVertical: 14,
     paddingHorizontal: 12,
     alignItems: 'center',
@@ -867,7 +901,7 @@ const styles = StyleSheet.create({
   dateFilterInput: {
     marginHorizontal: 20,
     marginBottom: 10,
-    borderRadius: 12,
+    borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 10,
     fontSize: 14,
@@ -882,6 +916,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
+    color: '#fff',
   },
   errorEmoji: {
     fontSize: 48,
@@ -892,6 +927,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 18,
     lineHeight: 22,
+    color: '#fff',
   },
   retryButton: {
     borderRadius: 12,
@@ -905,13 +941,20 @@ const styles = StyleSheet.create({
   },
   listFlex: {
     flex: 1,
+    ...(Platform.OS === 'web'
+      ? {
+          // força área scrollável no navegador
+          overflow: 'auto',
+          height: '100%',
+        }
+      : {}),
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 28,
+    paddingBottom: 32,
   },
   card: {
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 10,
     flexDirection: 'row',
     padding: 14,
@@ -951,7 +994,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   dailyCard: {
-    borderRadius: 14,
+    borderRadius: 16,
     marginBottom: 10,
     flexDirection: 'row',
     padding: 14,
